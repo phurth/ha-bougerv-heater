@@ -1,0 +1,39 @@
+{
+  "domain": "ha_bougerv_heater",
+  "name": "BougeRV Diesel Heater",
+  "bluetooth": [
+    {
+      "local_name": "BougeRV-DHG001*",
+      "connectable": true
+    },
+    {
+      "local_name": "BougeRV-DHG002*",
+      "connectable": true
+    },
+    {
+      "local_name": "BougeRV-DHG003*",
+      "connectable": true
+    },
+    {
+      "local_name": "BougeRV-DHG004*",
+      "connectable": true
+    },
+    {
+      "local_name": "LFB00000*",
+      "connectable": true
+    }
+  ],
+  "codeowners": [
+    "@phurth"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "bluetooth"
+  ],
+  "documentation": "https://github.com/phurth/ha-bougerv-heater",
+  "integration_type": "device",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/phurth/ha-bougerv-heater/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

@@ -1,0 +1,109 @@
+{
+  "config": {
+    "flow_title": "{name} ({address})",
+    "step": {
+      "bluetooth_confirm": {
+        "title": "Confirm your heater",
+        "description": "Found **{name}** with MAC address **{address}** (signal {rssi} dBm).\n\nThis heater has no Bluetooth pairing or password, so **any BougeRV heater within range can be added**, including one that isn't yours. Confirm this is your heater before continuing:\n\n1. In the BougeRV app, open the heater and tap the settings (gear) icon.\n2. Check that the MAC address shown there is **{address}**.\n\nIf the app doesn't show a MAC address, unplug your heater for a minute and start discovery again: your heater will not be listed while it is unplugged.",
+        "data": {
+          "mac_confirmed": "I have checked that this MAC address belongs to my heater"
+        }
+      },
+      "user": {
+        "title": "Choose your heater",
+        "description": "Choose your heater. The strongest signal (closest to 0 dBm) is usually the nearest one.\n\nThis heater has no Bluetooth pairing or password, so **any BougeRV heater within range can be added**, including one that isn't yours. Confirm the MAC address before continuing:\n\n1. In the BougeRV app, open the heater and tap the settings (gear) icon.\n2. Check that the MAC address shown there matches the one you select below.\n\nIf the app doesn't show a MAC address, unplug your heater for a minute and start again: your heater will not be listed while it is unplugged.",
+        "data": {
+          "address": "Heater",
+          "mac_confirmed": "I have checked that this MAC address belongs to my heater"
+        }
+      }
+    },
+    "error": {
+      "confirm_mac": "Confirm the MAC address matches your heater before continuing."
+    },
+    "abort": {
+      "already_configured": "This heater is already set up.",
+      "no_devices_found": "No BougeRV standard diesel heaters were found. Make sure the heater is plugged in and within Bluetooth range of Home Assistant or a Bluetooth proxy.",
+      "not_supported": "This BougeRV device is not a supported standard diesel heater."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "run_state": {
+        "name": "Run state",
+        "state": {
+          "off": "Off",
+          "starting": "Starting",
+          "running": "Running",
+          "shutting_down": "Shutting down"
+        }
+      },
+      "heat_output": {
+        "name": "Heat output"
+      },
+      "heat_output_setting": {
+        "name": "Heat output setting"
+      },
+      "combustion_efficiency": {
+        "name": "Combustion efficiency"
+      },
+      "input_voltage": {
+        "name": "Input voltage"
+      },
+      "total_run_time": {
+        "name": "Total run time"
+      },
+      "fault_code": {
+        "name": "Fault code",
+        "state_attributes": {
+          "raw_code": {
+            "name": "Raw code"
+          },
+          "fault": {
+            "name": "Fault"
+          },
+          "possible_causes": {
+            "name": "Possible causes"
+          },
+          "recovery_steps": {
+            "name": "Recovery steps"
+          }
+        }
+      },
+      "status_frame": {
+        "name": "Status frame"
+      }
+    },
+    "binary_sensor": {
+      "fault": {
+        "name": "Fault"
+      },
+      "onboard_schedule": {
+        "name": "Onboard schedule",
+        "state_attributes": {
+          "hours": {
+            "name": "Hours"
+          }
+        }
+      },
+      "fan": {
+        "name": "Fan"
+      },
+      "fuel_pump": {
+        "name": "Fuel pump"
+      },
+      "glow_plug": {
+        "name": "Glow plug"
+      },
+      "flame": {
+        "name": "Flame"
+      },
+      "intake": {
+        "name": "Intake"
+      },
+      "exhaust": {
+        "name": "Exhaust"
+      }
+    }
+  }
+}

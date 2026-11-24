@@ -1,0 +1,59 @@
+{
+  "entity": {
+    "sensor": {
+      "run_state": {
+        "default": "mdi:radiator",
+        "state": {
+          "off": "mdi:radiator-off",
+          "starting": "mdi:fire-alert",
+          "running": "mdi:fire",
+          "shutting_down": "mdi:fan-clock"
+        }
+      },
+      "heat_output": {
+        "default": "mdi:fire"
+      },
+      "heat_output_setting": {
+        "default": "mdi:tune-vertical"
+      },
+      "combustion_efficiency": {
+        "default": "mdi:gauge"
+      },
+      "total_run_time": {
+        "default": "mdi:timer-outline"
+      },
+      "fault_code": {
+        "default": "mdi:alert-circle-outline",
+        "state": {
+          "none": "mdi:check-circle-outline"
+        }
+      },
+      "status_frame": {
+        "default": "mdi:code-brackets"
+      }
+    },
+    "binary_sensor": {
+      "onboard_schedule": {
+        "default": "mdi:calendar-clock"
+      },
+      "fan": {
+        "default": "mdi:fan"
+      },
+      "fuel_pump": {
+        "default": "mdi:gas-station"
+      },
+      "glow_plug": {
+        "default": "mdi:flash"
+      },
+      "flame": {
+        "default": "mdi:fire"
+      },
+      "intake": {
+        "default": "mdi:arrow-collapse-right"
+      },
+      "exhaust": {
+        "default": "mdi:arrow-expand-right"
+      }
+    }
+  }
+}
