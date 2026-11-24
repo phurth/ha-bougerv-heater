@@ -68,6 +68,11 @@
       "heat_output_control": {
         "default": "mdi:tune-vertical"
       }
+    },
+    "climate": {
+      "thermostat": {
+        "default": "mdi:thermostat"
+      }
     }
   }
 }

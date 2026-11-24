@@ -155,7 +155,7 @@ not listed here belong to the Pro.
 | Output 5.0 kW (maximum) | `00 07 32 39` |
 | Firmware query | `00 0E 0E` |
 | Clock, 2026-11-23 19:45:30 | `00 0A 1A 0B 17 13 2D 1E A4` |
-| Schedule 01:00 and 05:00 | `00 0B 00 22 00 00 00 2D` |
+| Schedule 01:00 and 05:00 (app labels) | `00 0B 00 11 00 00 00 1C` |
 | Schedule enable / disable | `00 0F 01 10` / `00 0F 00 0F` |
 
 ---
@@ -194,9 +194,9 @@ be discarded.
 | 12 | Output setpoint | s8 | × 0.1 kW |
 | 13 | Temperature setpoint | s8 | Not used by the standard heater |
 | 14 | Input voltage | u8 | × 0.2 V |
-| 15 | Schedule hours 00–07 | bitmap | Bit *n* = hour *n* |
-| 16 | Schedule hours 08–15 | bitmap | Bit *n* = hour 8 + *n* |
-| 17 | Schedule hours 16–23 | bitmap | Bit *n* = hour 16 + *n* |
+| 15 | Schedule slots 01:00–08:00 | bitmap | Bit *n* = slot labelled (*n* + 1):00 |
+| 16 | Schedule slots 09:00–16:00 | bitmap | Bit *n* = slot labelled (*n* + 9):00 |
+| 17 | Schedule slots 17:00–24:00 | bitmap | Bit *n* = slot labelled (*n* + 17):00; bit 7 = 24:00 (midnight) |
 | 18 | Unknown | — | `0x00` in every frame observed |
 | 19 | Checksum | u8 | Sum of bytes 0–18 |
 
@@ -295,6 +295,26 @@ phone app. Power off during startup and heat output changes while off were
 both refused with their messages, and nothing was sent. The heat output setting persists through shutdown. A dropped link
 does not stop a running heater.
 
+### 6.2c Observed thermostat runs (2026-11-24, target 65 °F)
+
+| Time | Event |
+|---|---|
+| 12:15:32 | Thermostat set to Heat with the sensor at 54.9 °F; start sent and confirmed at 12:15:34 |
+| 12:19:59 | Running; output raised from 3.0 to 5.0 kW at 12:20:01 |
+| 12:29:13 | Sensor 61.0 °F: output 4.1 kW |
+| 12:30:23 | Sensor 61.2 °F: output 3.9 kW (70 s after the previous change) |
+| 12:31:23 | Sensor 61.4 °F: 3.8 kW wanted, under the 0.2 kW minimum change, not sent |
+| 12:31:51 | Sensor 62.4 °F: output 3.1 kW |
+| 12:33:31 | Sensor jumped to 71.4 °F: output 1.4 kW, then stop, both confirmed within one 2 s poll; thermostat stayed in Heat |
+| 12:38:04 | Off after a 4:33 cool-down; thermostat idle in Heat |
+| 12:49:13 | Second run started by the thermostat |
+| 12:53:21 | Running; output raised from 1.4 to 5.0 kW |
+| 12:54:06 | Heater stopped from the phone app; thermostat switched itself to Off without sending anything, and stayed Off with a cold sensor |
+
+Every output value matched the formula in 9.4. During startup the heater
+follows its own output ramp regardless of the setting (2.0–2.7 kW against a
+1.4 kW setting).
+
 ### 6.3 Firmware reply
 
 A notification with `0x0E` at byte 1 carries the version in bytes 5, 6, and 7,
@@ -346,7 +366,14 @@ the heater at that hour and shuts it down one hour later. For example, selecting
 01:00 and 05:00 runs it during 01:00–02:00 and 05:00–06:00 every day.
 
 Hours are set with command `0x0B`, followed 300 ms later by the enable command
-`0x0F`. Bit *n* of `H0`, `H1`, and `H2` selects hour *n*, 8 + *n*, and 16 + *n*.
+`0x0F`. The BougeRV app labels bit *n* of `H0`, `H1`, and `H2` as the slots
+(*n* + 1):00, (*n* + 9):00, and (*n* + 17):00, so bit 0 of `H0` is 01:00 and
+bit 7 of `H2` is 24:00 (midnight). The integration reports hours with these
+labels. Whether the firmware fires slot 01:00 at 1 a.m. has not been observed.
+
+Schedule editing and clock sync (`0x0A`) are intentionally **not** implemented:
+Home Assistant automations and the thermostat replace them. The schedule state
+stays visible because it can start the heater with no client connected.
 
 **The heater can start itself from this schedule without any connected client.**
 The integration should therefore surface the schedule state even if it does not
@@ -362,7 +389,7 @@ offer schedule editing.
 |---|---|---|
 | 1 | 0.1 | Read-only: all sensors, faults with causes and recovery steps, MAC-confirmed setup |
 | 2 | 0.2 | Power and heat output controls, disabled by default, with the guards in 9.3 |
-| 3 | 0.3 | Onboard schedule editing (with clock sync) and a Home Assistant thermostat |
+| 3 | 0.3 | Home Assistant thermostat. Onboard schedule editing and clock sync are **not planned**: automations and the thermostat replace them, and the schedule stays read-only |
 
 Phase 1 writes nothing to the heater except the firmware query.
 
@@ -434,7 +461,7 @@ signal first, and Pro heaters are never offered.
 - Confirm every command from the status stream rather than assuming it applied.
 - Do not send schedule, mode, or temperature commands in phase 2.
 
-### 9.4 Thermostat mode (phase 3)
+### 9.4 Thermostat (phase 3, v0.3)
 
 The standard heater has **no onboard thermostat or room sensor**. The Pro's
 thermostat depends on a room sensor in its remote. An equivalent can run in
@@ -455,6 +482,39 @@ that the user selects:
   BLE link fails while the heater is running, it keeps burning at its last
   output with no thermostat cutoff. The Pro's thermostat does not have this
   weakness.
+
+**Implementation (v0.3):** `climate` entity, disabled by default, created only
+when a temperature sensor is chosen in the integration options. Modes Off and
+Heat; target 5–30 °C in whole-degree steps, shown in whole degrees of the system unit. The control
+logic is a pure state machine (`thermostat.py`), evaluated on every heater
+status change, every sensor change, and every 30 s; each evaluation takes at
+most one action.
+
+| Setting (options) | Default | Notes |
+|---|---|---|
+| Temperature sensor | — | Required for the thermostat to exist |
+| Minimum run time | 15 min | Before a stop for being above target |
+| Minimum off time | 10 min | Before a restart |
+| Stop margin | 2 °C | Above target, at minimum output |
+| Restart margin | 1 °C | Below target |
+| Sensor timeout | 15 min | Unavailable or not reporting for this long counts as stale |
+
+| Situation | Behavior |
+|---|---|
+| Heat, heater off, room ≤ target − restart margin | Start (after the minimum off time) |
+| Heat, running | Output = 1.4 kW + (target − room) / 3 °C × 3.6 kW, clamped to 1.4–5.0, rounded to 0.1. Sent only if it differs by ≥ 0.2 kW (or reaches a limit), at most once a minute |
+| Heat, running, room ≥ target + stop margin, output at 1.4 kW | Stop, once the room has stayed above the margin at minimum output for **3 minutes** (resetting whenever it drops below or the sensor has no reading) and after the minimum run time |
+| Heat, sensor stale | Stop a running heater; wait while starting; resume when the sensor returns |
+| Heat, heater fault, or a start the heater did not confirm | Lockout: no action until the thermostat is turned off and on |
+| Heat, heater stopped by the app or its panel | Thermostat switches to Off |
+| Off | Stops a heater the thermostat was running (waiting until a startup reaches Running); otherwise leaves starts from elsewhere alone |
+| Link lost | No action; the next status is judged on its own, so a reconnect is not mistaken for a stop |
+
+Mode, target, and the last start and stop times survive a restart. The
+thermostat acts only once heater status and the sensor are both available. An
+onboard schedule that is on **with hours selected** raises a Home Assistant
+repair issue, because it can start the heater while the thermostat is off.
+The `control` attribute explains the current decision and `lockout` its reason.
 
 ### 9.5 Safety behavior
 

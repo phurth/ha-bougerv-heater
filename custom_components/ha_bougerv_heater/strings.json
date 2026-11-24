@@ -114,6 +114,22 @@
       "heat_output_control": {
         "name": "Heat output setting"
       }
+    },
+    "climate": {
+      "thermostat": {
+        "name": "Thermostat",
+        "state_attributes": {
+          "control": {
+            "name": "Control"
+          },
+          "lockout": {
+            "name": "Lockout"
+          },
+          "temperature_sensor": {
+            "name": "Temperature sensor"
+          }
+        }
+      }
     }
   },
   "exceptions": {
@@ -146,6 +162,32 @@
     },
     "output_out_of_range": {
       "message": "Heat output must be between 1.4 and 5.0 kW."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Thermostat",
+        "description": "Choose a temperature sensor in the heated space to create a **Thermostat** entity. It is disabled by default: enable it on the device page to use it.\n\nOutput is adjusted first. The heater is stopped only when the room stays above the target by the stop margin at minimum output, and restarted when it falls below the target by the restart margin.",
+        "data": {
+          "temperature_sensor": "Temperature sensor",
+          "min_run_minutes": "Minimum run time (minutes)",
+          "min_off_minutes": "Minimum off time (minutes)",
+          "stop_above": "Stop margin above target",
+          "restart_below": "Restart margin below target",
+          "sensor_timeout_minutes": "Shut down if the sensor stops updating for (minutes)"
+        },
+        "data_description": {
+          "temperature_sensor": "Leave empty to remove the thermostat.",
+          "sensor_timeout_minutes": "Pick a value longer than the sensor's longest normal gap between updates."
+        }
+      }
+    }
+  },
+  "issues": {
+    "onboard_schedule_conflict": {
+      "title": "{name}: onboard schedule is active",
+      "description": "The heater's onboard schedule is on with these hours selected: {hours}. The heater will start itself at those times even if the Home Assistant thermostat is off.\n\nIf you control the heater with the thermostat, clear the schedule hours or turn the schedule off in the BougeRV app (heater → Timing Configuration)."
     }
   }
 }

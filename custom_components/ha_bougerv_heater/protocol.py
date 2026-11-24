@@ -97,7 +97,7 @@ class HeaterStatus:
     voltage: float
     total_run_hours: int
     schedule_enabled: bool
-    schedule_hours: tuple[int, ...]
+    schedule_hours: tuple[int, ...]  # app labels, 1-24
 
     @property
     def fault_active(self) -> bool:
@@ -149,8 +149,10 @@ def parse_status(frame: bytes) -> HeaterStatus | None:
         return None
 
     flags = frame[2]
+    # Bit i of bytes 15-17 is the slot the BougeRV app labels (i + 1):00, so the
+    # hours run 1-24, where 24 means the slot starting at midnight.
     hours = tuple(
-        hour for hour in range(24) if frame[15 + hour // 8] & (1 << (hour % 8))
+        slot + 1 for slot in range(24) if frame[15 + slot // 8] & (1 << (slot % 8))
     )
     return HeaterStatus(
         raw=bytes(frame),

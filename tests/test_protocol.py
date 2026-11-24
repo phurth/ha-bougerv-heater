@@ -87,7 +87,14 @@ def test_running_values() -> None:
     assert status.output_setting_kw == 3.0
     assert status.voltage == 12.4
     assert status.total_run_hours == 300
-    assert status.schedule_hours == (1, 5, 23)
+    # The app labels bit i as (i + 1):00: bits 1, 5, 23 are 02:00, 06:00, 24:00.
+    assert status.schedule_hours == (2, 6, 24)
+
+
+def test_schedule_hours_use_the_app_labels() -> None:
+    status = parse_status(_status(b15=0x01, b17=0x80))
+    assert status is not None
+    assert status.schedule_hours == (1, 24)  # first slot 01:00, last 24:00
 
 
 def test_bad_checksum_is_rejected() -> None:

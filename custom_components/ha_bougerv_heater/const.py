@@ -25,6 +25,22 @@ STANDARD_NAME_PREFIXES = (
 
 CONF_MAC_CONFIRMED = "mac_confirmed"
 
+# Thermostat options. Margins are stored in °C.
+CONF_TEMPERATURE_SENSOR = "temperature_sensor"
+CONF_MIN_RUN_MINUTES = "min_run_minutes"
+CONF_MIN_OFF_MINUTES = "min_off_minutes"
+CONF_STOP_ABOVE = "stop_above"
+CONF_RESTART_BELOW = "restart_below"
+CONF_SENSOR_TIMEOUT_MINUTES = "sensor_timeout_minutes"
+
+DEFAULT_MIN_RUN_MINUTES = 15
+DEFAULT_MIN_OFF_MINUTES = 10
+DEFAULT_STOP_ABOVE = 2.0
+DEFAULT_RESTART_BELOW = 1.0
+DEFAULT_SENSOR_TIMEOUT_MINUTES = 15
+
+THERMOSTAT_EVALUATE_INTERVAL = 30.0
+
 # Status frames arrive about once a second.
 STALE_AFTER = 10.0
 FIRMWARE_RETRY_DELAY = 0.3

@@ -10,6 +10,7 @@ from .coordinator import HeaterCoordinator
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
+    Platform.CLIMATE,
     Platform.NUMBER,
     Platform.SENSOR,
     Platform.SWITCH,
@@ -28,7 +29,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: BougeRVHeaterConfigEntry
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     coordinator.async_start()
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     return True
+
+
+async def _async_options_updated(hass: HomeAssistant, entry: BougeRVHeaterConfigEntry) -> None:
+    """Reload so the thermostat picks up its new settings."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: BougeRVHeaterConfigEntry) -> bool:
