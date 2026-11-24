@@ -14,6 +14,8 @@ Everything that can start or change the heater is **disabled by default**. Out o
 
 ## Features / Entities
 
+<img src="https://raw.githubusercontent.com/phurth/ha-bougerv-heater/main/docs/images/device-page.png" alt="Heater device page in Home Assistant showing controls, sensors, and diagnostics" width="900">
+
 ### Monitoring
 
 | Entity | Type | Notes |
@@ -93,6 +95,8 @@ Remote starting a combustion heater carries real risk. Before automating the pow
 2. Enable the **Thermostat** entity on the heater's device page.
 3. Set it to **Heat** with a target temperature.
 
+<img src="https://raw.githubusercontent.com/phurth/ha-bougerv-heater/main/docs/images/thermostat.png" alt="Thermostat card with the Off and Heat modes" width="380">
+
 **How it heats.** The thermostat adjusts heat output first: 5.0 kW when the room is well below target, easing to 1.4 kW as it reaches the target, changing at most once a minute. It stops the heater only when the room stays above the target by the stop margin at 1.4 kW for **3 minutes**, so a brief spike from a jumpy sensor doesn't cause a stop. It restarts once the room falls below the target by the restart margin.
 
 | Option | Default | Notes |
@@ -105,6 +109,8 @@ Remote starting a combustion heater carries real risk. Before automating the pow
 | Sensor timeout | 15 minutes | Choose a value longer than the sensor's longest normal gap between updates |
 
 Margins are shown in your Home Assistant temperature unit.
+
+<img src="https://raw.githubusercontent.com/phurth/ha-bougerv-heater/main/docs/images/thermostat-options.png" alt="Thermostat options: temperature sensor, minimum run and off times, margins, and sensor timeout" width="480">
 
 **Safety behavior:**
 
