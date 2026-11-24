@@ -12,7 +12,13 @@ from enum import StrEnum
 FRAME_STATUS = 0x41
 FRAME_FIRMWARE = 0x0E
 
+CMD_POWER = 0x05
+CMD_HEAT_OUTPUT = 0x07
 CMD_FIRMWARE_QUERY = 0x0E
+
+# Heat output in tenths of a kW: 1.4-5.0 kW.
+OUTPUT_MIN_RAW = 14
+OUTPUT_MAX_RAW = 50
 
 # Status frames carry 18 data bytes plus at least a trailing checksum.
 STATUS_MIN_LENGTH = 19
@@ -51,6 +57,23 @@ def firmware_query() -> bytes:
     return build_command(CMD_FIRMWARE_QUERY)
 
 
+def power_command(on: bool) -> bytes:
+    """Return ``00 05 01 06`` (on) or ``00 05 00 05`` (off)."""
+    return build_command(CMD_POWER, b"\x01" if on else b"\x00")
+
+
+def heat_output_command(raw: int) -> bytes:
+    """Return the heat output command for ``raw`` tenths of a kW (14-50)."""
+    if not OUTPUT_MIN_RAW <= raw <= OUTPUT_MAX_RAW:
+        raise ValueError(f"heat output {raw} outside {OUTPUT_MIN_RAW}-{OUTPUT_MAX_RAW}")
+    return build_command(CMD_HEAT_OUTPUT, bytes((raw,)))
+
+
+def kw_to_raw(kw: float) -> int:
+    """Convert a kW value from the UI to tenths of a kW."""
+    return int(round(kw * 10))
+
+
 def _s8(value: int) -> int:
     return value - 256 if value > 127 else value
 
@@ -79,6 +102,16 @@ class HeaterStatus:
     @property
     def fault_active(self) -> bool:
         return self.fault_code is not None
+
+    @property
+    def on_flag(self) -> bool:
+        """State bits ``01``: commanded on, whether or not the flame is lit yet."""
+        return self.raw[2] & 0b11 == 0b01
+
+    @property
+    def is_on(self) -> bool:
+        """Starting or running (not off, not in cool-down)."""
+        return self.run_state in (RunState.STARTING, RunState.RUNNING)
 
     @property
     def unknown_fields(self) -> dict[str, int]:

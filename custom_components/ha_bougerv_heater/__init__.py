@@ -8,7 +8,12 @@ from homeassistant.core import HomeAssistant
 
 from .coordinator import HeaterCoordinator
 
-PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
+PLATFORMS: list[Platform] = [
+    Platform.BINARY_SENSOR,
+    Platform.NUMBER,
+    Platform.SENSOR,
+    Platform.SWITCH,
+]
 
 type BougeRVHeaterConfigEntry = ConfigEntry[HeaterCoordinator]
 

@@ -6,6 +6,7 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from bleak import BleakClient
@@ -24,17 +25,37 @@ from .const import (
     FIRMWARE_RETRY_DELAY,
     NOT_IN_RANGE_RECHECK,
     NOTIFY_SWITCH_DELAY,
+    OUTPUT_CONFIRM_TIMEOUT,
+    POWER_CONFIRM_TIMEOUT,
     RECONNECT_AFTER_DROP,
     RECONNECT_MAX,
     RECONNECT_MIN,
     STALE_AFTER,
 )
-from .protocol import HeaterStatus, firmware_query, parse_firmware, parse_status
+from .guards import check_heat_output, check_power_off, check_power_on
+from .protocol import (
+    HeaterStatus,
+    RunState,
+    firmware_query,
+    heat_output_command,
+    kw_to_raw,
+    parse_firmware,
+    parse_status,
+    power_command,
+)
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class CommandError(Exception):
+    """A control command was refused or failed. ``reason`` is a translation key."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
 
 
 @dataclass
@@ -69,6 +90,8 @@ class HeaterCoordinator(DataUpdateCoordinator[HeaterStatus | None]):
         self._client: BleakClient | None = None
         self._cancel_advert: CALLBACK_TYPE | None = None
         self._was_available = False
+        self._command_lock = asyncio.Lock()
+        self._waiters: list[tuple[Callable[[HeaterStatus], bool], asyncio.Future[None]]] = []
 
     # ------------------------------------------------------------------ state
 
@@ -273,6 +296,9 @@ class HeaterCoordinator(DataUpdateCoordinator[HeaterStatus | None]):
             self.stats.bad_frames += 1
             return
         self._last_frame_at = time.monotonic()
+        for confirm, future in list(self._waiters):
+            if not future.done() and confirm(status):
+                future.set_result(None)
         if not self._was_available:
             self._was_available = True
             _LOGGER.info("%s: receiving heater status", self.address)
@@ -281,3 +307,92 @@ class HeaterCoordinator(DataUpdateCoordinator[HeaterStatus | None]):
         self._fresh = True
         self._last_raw = frame
         self.async_set_updated_data(status)
+
+    # --------------------------------------------------------------- commands
+
+    async def async_set_power(self, on: bool) -> None:
+        """Start or stop the heater, after checking it is safe to do so."""
+
+        def plan(status: HeaterStatus) -> str | None:
+            if on and status.is_on:
+                return None  # already starting or running
+            if not on and status.run_state in (RunState.OFF, RunState.SHUTTING_DOWN):
+                return None  # already off or cooling down
+            reason = check_power_on(status) if on else check_power_off(status)
+            if reason is not None:
+                raise CommandError(reason)
+            return "power on" if on else "power off"
+
+        def confirmed(status: HeaterStatus) -> bool:
+            if on:
+                return status.run_state is not RunState.OFF
+            return status.run_state in (RunState.SHUTTING_DOWN, RunState.OFF)
+
+        await self._send(plan, lambda: power_command(on), confirmed, POWER_CONFIRM_TIMEOUT)
+
+    async def async_set_heat_output(self, kw: float) -> None:
+        """Change the heat output setting, after checking it is safe to do so."""
+        raw = kw_to_raw(kw)
+
+        def plan(status: HeaterStatus) -> str | None:
+            reason = check_heat_output(status, raw)
+            if reason is not None:
+                raise CommandError(reason)
+            if kw_to_raw(status.output_setting_kw) == raw:
+                return None
+            return f"heat output {raw / 10:.1f} kW"
+
+        await self._send(
+            plan,
+            lambda: heat_output_command(raw),
+            lambda status: kw_to_raw(status.output_setting_kw) == raw,
+            OUTPUT_CONFIRM_TIMEOUT,
+        )
+
+    async def _send(
+        self,
+        plan: Callable[[HeaterStatus], str | None],
+        build: Callable[[], bytes],
+        confirmed: Callable[[HeaterStatus], bool],
+        timeout: float,
+    ) -> None:
+        """Check, write once, and wait for a status frame that confirms the change.
+
+        ``plan`` runs under the command lock against the latest status. It
+        raises CommandError to refuse, returns None when nothing needs sending,
+        or returns a description for the log.
+        """
+        async with self._command_lock:
+            client = self._client
+            status = self.data
+            if not self.available or status is None or client is None or not client.is_connected:
+                raise CommandError("not_connected")
+            description = plan(status)
+            if description is None:
+                return
+            frame = build()
+            future: asyncio.Future[None] = asyncio.get_running_loop().create_future()
+            waiter = (confirmed, future)
+            self._waiters.append(waiter)
+            try:
+                _LOGGER.info("%s: sending %s (%s)", self.address, description, frame.hex(" "))
+                try:
+                    await client.write_gatt_char(CHAR_WRITE, frame, response=True)
+                except Exception as err:  # noqa: BLE001
+                    _LOGGER.warning("%s: %s failed: %s", self.address, description, err)
+                    raise CommandError("write_failed") from err
+                try:
+                    async with asyncio.timeout(timeout):
+                        await future
+                except TimeoutError as err:
+                    _LOGGER.warning(
+                        "%s: heater did not confirm %s within %.0f s",
+                        self.address,
+                        description,
+                        timeout,
+                    )
+                    raise CommandError("not_confirmed") from err
+                _LOGGER.info("%s: heater confirmed %s", self.address, description)
+            finally:
+                if waiter in self._waiters:
+                    self._waiters.remove(waiter)

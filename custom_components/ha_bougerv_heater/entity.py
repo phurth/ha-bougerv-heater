@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable
+
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, MANUFACTURER, MODEL
-from .coordinator import HeaterCoordinator
+from .coordinator import CommandError, HeaterCoordinator
 
 
 def heater_device_info(coordinator: HeaterCoordinator) -> DeviceInfo:
@@ -38,3 +41,26 @@ class HeaterEntity(CoordinatorEntity[HeaterCoordinator]):
     def available(self) -> bool:
         """Unavailable whenever status is not arriving. Never report stale data."""
         return self.coordinator.available
+
+
+# Refusals the user can fix by waiting or by changing what they asked for.
+_VALIDATION_REASONS = {
+    "fault_active",
+    "cooling_down",
+    "already_on",
+    "already_off",
+    "starting",
+    "output_heater_off",
+    "output_out_of_range",
+}
+
+
+async def run_command(command: Awaitable[None]) -> None:
+    """Run a control command, turning refusals into messages Home Assistant shows."""
+    try:
+        await command
+    except CommandError as err:
+        error_cls = (
+            ServiceValidationError if err.reason in _VALIDATION_REASONS else HomeAssistantError
+        )
+        raise error_cls(translation_domain=DOMAIN, translation_key=err.reason) from err

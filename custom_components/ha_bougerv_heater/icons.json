@@ -54,6 +54,20 @@
       "exhaust": {
         "default": "mdi:arrow-expand-right"
       }
+    },
+    "switch": {
+      "power": {
+        "default": "mdi:power",
+        "state": {
+          "on": "mdi:radiator",
+          "off": "mdi:radiator-off"
+        }
+      }
+    },
+    "number": {
+      "heat_output_control": {
+        "default": "mdi:tune-vertical"
+      }
     }
   }
 }

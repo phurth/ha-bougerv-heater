@@ -104,6 +104,48 @@
       "exhaust": {
         "name": "Exhaust"
       }
+    },
+    "switch": {
+      "power": {
+        "name": "Power"
+      }
+    },
+    "number": {
+      "heat_output_control": {
+        "name": "Heat output setting"
+      }
+    }
+  },
+  "exceptions": {
+    "not_connected": {
+      "message": "The heater is not connected. Wait until its status is available, then try again."
+    },
+    "write_failed": {
+      "message": "The command could not be sent to the heater. Check the Bluetooth connection, then try again."
+    },
+    "not_confirmed": {
+      "message": "The heater did not confirm the command. Check the heater's state before trying again."
+    },
+    "fault_active": {
+      "message": "The heater reports a fault. Resolve the fault before starting the heater or changing its output."
+    },
+    "cooling_down": {
+      "message": "The heater is shutting down. Wait until the cool-down finishes and it shows Off."
+    },
+    "already_on": {
+      "message": "The heater is already on."
+    },
+    "already_off": {
+      "message": "The heater is already off."
+    },
+    "starting": {
+      "message": "The heater is still starting. It can be turned off once it reaches Running."
+    },
+    "output_heater_off": {
+      "message": "Heat output can only be changed while the heater is starting or running."
+    },
+    "output_out_of_range": {
+      "message": "Heat output must be between 1.4 and 5.0 kW."
     }
   }
 }

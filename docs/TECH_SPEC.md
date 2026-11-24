@@ -276,6 +276,25 @@ Findings:
 - Bytes 0, 7, 8, 11, 13, and 15–18 did not change. Bytes 9–10 stayed at 0 run
   hours over this 14-minute run.
 
+### 6.2b Observed run controlled from Home Assistant (2026-11-24)
+
+| Time | Event |
+|---|---|
+| 11:16:00 | Power on (`00 05 01 06`) confirmed: Starting |
+| 11:20:28 | Running, 4:28 after start (app start: 4:26) |
+| 11:22:09 | Link lost on the local adapter (about −96 dBm) while running |
+| 11:22:13 | Reconnected through an ESPHome proxy; **heater kept running** at 3.5 kW |
+| 11:22:49 | Heat output 3.0 kW (`00 07 1E 25`) confirmed: byte 12 = 30 |
+| ~11:24 | Actual output down from 3.6 to 2.7 kW, following the new setting |
+| 11:24:35 | Power off (`00 05 00 05`) confirmed: Shutting down |
+| 11:25:45 | Status stopped with the link still up; dropped as stale after 10 s, reconnected at 11:25:51 |
+| 11:29:07 | Off, 4:32 after power off (app shutdown: 4:33) |
+
+Commands from Home Assistant produced the same sequences and timings as the
+phone app. Power off during startup and heat output changes while off were
+both refused with their messages, and nothing was sent. The heat output setting persists through shutdown. A dropped link
+does not stop a running heater.
+
 ### 6.3 Firmware reply
 
 A notification with `0x0E` at byte 1 carries the version in bytes 5, 6, and 7,
@@ -368,8 +387,22 @@ Phase 1 writes nothing to the heater except the firmware query.
 Byte 6 is not room temperature and is not exposed except through the status
 frame entity and diagnostics.
 
-Planned for phase 2: Power (`switch`) and Heat output (`number`, 1.4–5.0 kW,
-step 0.1), both disabled by default.
+### 9.2c Controls (phase 2, v0.2)
+
+| Entity | Platform | Default | Command | Confirmed when |
+|---|---|---|---|---|
+| Power | `switch` (on = Starting or Running) | Disabled | `0x05` | On: run state leaves Off. Off: run state is Shutting down or Off |
+| Heat output setting | `number` (1.4–5.0 kW, step 0.1, slider) | Disabled | `0x07` | Byte 12 equals the requested value |
+
+Each command takes a lock, rechecks the guards in 9.3 against the latest
+status, writes once with response, and waits up to 10 s (power) or 6 s
+(output) for a confirming status frame. It is never retried automatically. A
+request that already matches the heater's state is not sent. Every command and
+its confirmation or failure is logged at info or warning level.
+
+Guard refusals are raised as validation errors with translated messages. A
+missing connection, a failed write, or a missing confirmation is raised as an
+error.
 
 ### 9.2a Setup and MAC confirmation
 
@@ -393,11 +426,13 @@ signal first, and Pro heaters are never offered.
 
 - **Power on** only when the latest status is fresh, the run state is Off, and no
   fault is active.
-- **Power off** only from the stable Running state until behavior during startup
-  has been tested.
+- **Power off** from Running, or whenever the state bits are `01` and a fault is
+  active (the app shows the off button in that case too). Refused during a
+  normal startup and during cool-down, until power-off during startup has been
+  tested (checklist 9).
 - **Heat output** only within 14–50 raw, while Starting or Running with no fault.
 - Confirm every command from the status stream rather than assuming it applied.
-- Do not send schedule, mode, or temperature commands in the initial release.
+- Do not send schedule, mode, or temperature commands in phase 2.
 
 ### 9.4 Thermostat mode (phase 3)
 
@@ -448,7 +483,7 @@ Steps 1–5 send no power, output, or schedule commands.
 | 4b | Run-cycle behavior, voltage while running | **Done** (section 6.2a); bytes 6, 7, 8, 18, and byte 11 bit 0 still unexplained |
 | 5 | Whether a held connection blocks the phone app | **Done:** concurrent centrals work |
 | 5b | Integration through Home Assistant's Bluetooth stack | **Done:** stable, no drops or bad frames |
-| 6 | Output changes while running | Open, **attended only** |
-| 7 | Power on, power off, and full cool-down | Open, **attended only** |
-| 8 | Heater behavior when the BLE link drops in each run state | Open, **attended only** |
+| 6 | Output changes while running | **Done:** 5.0 → 3.0 kW confirmed, output followed |
+| 7 | Power on, power off, and full cool-down | **Done** from Home Assistant (section 6.2b) |
+| 8 | Heater behavior when the BLE link drops in each run state | Running and Shutting down: **heater carries on unaffected**. Starting: untested |
 | 9 | Whether power-off is accepted during startup | Open, **attended only** |
